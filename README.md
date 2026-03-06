@@ -1,0 +1,219 @@
+# Sudoku Solver
+
+A TypeScript command-line tool that reads a Sudoku board position from a JSON file and identifies the next logical deduction — or applies a set of moves supplied by the caller.
+
+## Requirements
+
+- Node.js 18+
+- npm
+
+Dependencies are installed with `npm install`. No global tools are required; `tsx` and `vitest` run via `npx` / npm scripts.
+
+## Quick start
+
+```bash
+npm install
+npm start -- data/puzzle.json
+```
+
+## Project structure
+
+```
+src/
+  types.ts      — Shared TypeScript types (Cell, SudokuState, CellAction, …)
+  solver.ts     — AdvancedSudokuSolver: 8 strategies applied in priority order
+  validator.ts  — SudokuValidator: board sanity checks
+  main.ts       — CLI entry point
+test/
+  main.test.ts       — Unit tests for all solver strategies
+  validator.test.ts  — Unit tests for the validator
+data/
+  puzzle.json   — Current board state (read and written by the CLI)
+```
+
+## Board format
+
+The board is stored as a JSON object with a `cells` array of exactly 81 entries. Each cell is one of:
+
+```json
+{ "row": 0, "column": 3, "solved": 7 }
+{ "row": 0, "column": 4, "candidates": [3, 5, 9] }
+```
+
+- `row` and `column` are **0-based** integers (0–8).
+- A **solved** cell carries only the `solved` property.
+- An **unsolved** cell carries only the `candidates` array (digits 1–9).
+
+The file is written back with one cell object per line for human readability:
+
+```json
+{
+  "cells": [
+    {"row":0,"column":0,"candidates":[4,5,7]},
+    {"row":0,"column":1,"solved":9},
+    ...
+  ]
+}
+```
+
+## Usage
+
+### Find the next logical move
+
+```bash
+npm start -- data/puzzle.json
+```
+
+Reads the board, validates it, runs the solver, and prints:
+
+- The strategy used and a human-readable explanation
+- Which cells were solved or had candidates eliminated
+- A `moves` array (structured, machine-readable)
+- The full board JSON after the move
+
+Example output:
+
+```
+============================================================
+SUDOKU SOLVER — next logical move
+============================================================
+
+Strategy: AIC: R2C3=4 == R2C3=5 -- R7C3=5 == R9C2=5 -- R5C2=5 == R5C6=5 -- R5C6=4 == R5C4=4 → eliminate 4 from R2C4.
+
+Candidates eliminated:
+  R2C4: removed [4] — remaining: [1,5,9]
+
+Next state (JSON):
+{
+  "cells": [ ... ],
+  "lastMove": "AIC: ...",
+  "moves": [
+    { "cell": "R2C4", "action": "remove_candidate", "digit": 4 }
+  ]
+}
+```
+
+### Apply moves and update the file
+
+```bash
+npm start -- data/puzzle.json --moves '<json-array>'
+```
+
+The `--moves` flag accepts a JSON array of `CellAction` objects. The program applies each move to the board, re-validates the result, and **writes the updated board back to the same file**.
+
+```bash
+npm start -- data/puzzle.json --moves '[
+  {"cell":"R2C4","action":"remove_candidate","digit":4}
+]'
+```
+
+Two action types are supported:
+
+| `action` | Effect |
+|---|---|
+| `remove_candidate` | Removes `digit` from the cell's candidate list |
+| `solve` | Sets the cell to `digit` and clears its candidates |
+
+Cell labels use **1-based** row and column numbers (`R1C1` … `R9C9`).
+
+Errors are reported and the file is left unchanged if:
+- A cell label is malformed or not found
+- A candidate being removed is not present in that cell
+- A cell being solved is already solved
+- The resulting board fails validation (e.g. duplicate digit in a unit)
+
+Typical workflow after the solver suggests a move:
+
+```bash
+# 1. See what the solver recommends
+npm start -- data/puzzle.json
+
+# 2. Apply the move it found
+npm start -- data/puzzle.json --moves '[{"cell":"R2C4","action":"remove_candidate","digit":4}]'
+
+# 3. Repeat
+npm start -- data/puzzle.json
+```
+
+## Solver strategies
+
+Strategies are attempted in priority order. The first one that produces a change is returned as the move.
+
+| # | Strategy | Description |
+|---|---|---|
+| 0 | **Cleanup** | Removes candidates that are already placed in a peer cell (prunes stale state) |
+| 1 | **Naked Single** | A cell with exactly one candidate must hold that digit |
+| 2 | **Hidden Single** | A digit that can go in only one cell within a unit must go there |
+| 3 | **Naked Subset** | N cells in a unit whose combined candidates total exactly N digits → those digits are eliminated from all other cells in the unit (pairs, triples, quads) |
+| 4 | **Hidden Subset (rows/cols)** | N digits confined to the same N cells in a row or column → all other candidates in those cells are removed |
+| 5 | **Hidden Subset (boxes)** | Same as above, applied to 3×3 boxes |
+| 6 | **Locked Candidates** | *Pointing*: a digit within a box confined to one row/col is eliminated from the rest of that row/col. *Claiming*: a digit within a row/col confined to one box is eliminated from the rest of that box |
+| 7 | **X-Wing** | A digit appearing in exactly two cells in each of two rows (same columns) can be eliminated from every other cell in those columns (and vice-versa for columns) |
+| 8 | **XY-Wing** | Three bivalue cells (pivot + two wings) force an elimination in any cell that sees both wings |
+| 9 | **AIC** | Alternating Inference Chain — a chain of strong and weak links between candidates; any cell seeing both endpoints of the chain can have the shared digit eliminated. All valid AICs up to depth 12 are found; the shortest chain is reported |
+
+### AIC chain notation
+
+```
+R2C3=4 == R2C3=5 -- R7C3=5 == R9C2=5 -- ...
+```
+
+- `==` strong link (if the left node is OFF, the right node must be ON)
+- `--` weak link (if the left node is ON, the right node must be OFF)
+- `RxCy=d` means digit `d` in row `x`, column `y` (1-based)
+
+### Relationship between XY-Wing and AIC
+
+XY-Wing is logically subsumed by AIC. When expressed at the candidate level (where each node is a cell+digit pair rather than a cell), an XY-Wing is a 6-node AIC:
+
+```
+{wingB, Z} == {wingB, X} -- {pivot, X} == {pivot, Y} -- {wingC, Y} == {wingC, Z}
+```
+
+The strong links are bivalue-cell partners (within each cell); the weak links are shared digit between cells that see each other. The endpoints both carry digit Z, so any cell seeing both endpoints can have Z eliminated — exactly the XY-Wing deduction.
+
+The AIC implementation in this solver will therefore find every XY-Wing pattern on its own. XY-Wing is retained as a separate earlier strategy for three practical reasons:
+
+- **Performance** — the XY-Wing search is a simple O(n³) loop over bivalue cells; the AIC DFS explores the entire candidate graph and is considerably more expensive.
+- **Human-readable output** — `XY-Wing: pivot R3C5 [4,9], wing R3C2 [4,7]…` is clearer than the equivalent 6-node AIC chain string.
+- **Strategy ordering** — cheap strategies run first so the expensive AIC search is a last resort.
+
+The same argument applies to X-Wing: it maps to an AIC (or "nice loop") over grouped nodes, so it too is subsumed by AIC in principle. If output clarity and performance were not concerns, both strategies could be removed and AIC alone would cover them.
+
+## Validation
+
+`SudokuValidator.validate(cells)` checks:
+
+1. **Cell count** — exactly 81 cells (bails early if not)
+2. **Coordinate range** — every `row` and `column` is in `[0, 8]`
+3. **Unique positions** — no two cells share the same `(row, column)`
+4. **Digit range** — solved values and all candidates are in `[1, 9]`
+5. **Unit uniqueness** — no solved digit appears twice in the same row, column, or box
+
+Each error has a machine-readable `code` and a human `message`. The CLI exits with code 1 and prints all errors if validation fails.
+
+## Development
+
+```bash
+npm test           # run all tests once
+npm run test:watch # re-run on file changes
+npm run build      # compile to dist/ (type-check with emit)
+```
+
+There are 39 unit tests across two files covering every strategy, all validator error codes, and AIC-specific behaviour (real puzzle board, shortest-chain selection).
+
+## Output types
+
+```typescript
+// A single cell modification produced by a move
+type CellAction =
+  | { cell: string; action: 'remove_candidate'; digit: number }
+  | { cell: string; action: 'solve'; digit: number };
+
+// The board state as returned by the solver
+interface SudokuState {
+  cells: Cell[];
+  lastMove?: string;    // human-readable description
+  moves?: CellAction[]; // structured list of cell changes
+}
+```
