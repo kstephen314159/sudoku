@@ -1,4 +1,4 @@
-import { Cell, CellAction, CellJson, SudokuState, SudokuStateJson } from './types';
+import { Cell, CellAction, CellJson, SudokuState, SudokuStateJson } from '../core/types';
 
 // ---------------------------------------------------------------------------
 // API Configuration
