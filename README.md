@@ -131,21 +131,23 @@ The API server exposes these endpoints (on port 3001):
 
 ```
 src/
-  types.ts      — Shared TypeScript types (Cell, SudokuState, CellAction, …)
-  solver.ts     — AdvancedSudokuSolver: 10 strategies applied in priority order
-  validator.ts  — SudokuValidator: board sanity checks
-  main.ts       — CLI entry point (original interface)
+  core/
+    types.ts      — Shared TypeScript types (Cell, SudokuState, CellAction, …)
+    solver.ts     — AdvancedSudokuSolver: 10 strategies applied in priority order
+    validator.ts  — SudokuValidator: board sanity checks
   api/
-    index.ts    — Express.js API server setup and routes
-  server.ts     — API server entry point
-  ui.ts         — SPA UI logic (calls API endpoints)
-  index.html    — SPA HTML structure
-  style.css     — SPA styling
+    main.ts       — CLI entry point
+    index.ts      — Express.js API server setup and routes
+    server.ts     — API server entry point
+  spa/
+    ui.ts         — SPA UI logic (calls API endpoints)
+    index.html    — SPA HTML structure
+    style.css     — SPA styling
 test/
   main.test.ts       — Unit tests for all solver strategies
   validator.test.ts  — Unit tests for the validator
 data/
-  puzzle.json   — Current board state (read and written by the CLI)
+  puzzle.json   — Current board state (read and written by the CLI/API)
 Dockerfile      — Container image for API server
 ```
 
