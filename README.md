@@ -132,7 +132,7 @@ The API server exposes these endpoints (on port 3001):
 ```
 src/
   types.ts      — Shared TypeScript types (Cell, SudokuState, CellAction, …)
-  solver.ts     — AdvancedSudokuSolver: 8 strategies applied in priority order
+  solver.ts     — AdvancedSudokuSolver: 10 strategies applied in priority order
   validator.ts  — SudokuValidator: board sanity checks
   main.ts       — CLI entry point (original interface)
   api/
@@ -176,18 +176,44 @@ The file is written back with one cell object per line for human readability:
 
 ## Usage
 
-### Find the next logical move
+### Interactive Web UI (Recommended)
+
+The primary workflow is the interactive SPA with the API backend:
+
+**Terminal 1: Start the API**
+```bash
+npm run dev:api
+```
+
+**Terminal 2: Start the SPA**
+```bash
+npm run dev
+```
+
+Open http://localhost:3000 in your browser.
+
+**Workflow:**
+1. Click **Load Puzzle** and select a JSON file (e.g., `data/puzzle.json`)
+2. Click **Find Next Move** to invoke the solver
+3. Review the highlighted cells and strategy explanation
+4. Click **Apply Move** to persist the move to disk
+5. Repeat until solved
+
+The board state is stored on the API server (`data/puzzle.json`) and updates with each applied move.
+
+### Command-Line Interface (Alternative)
+
+For non-interactive solving, use the CLI directly:
 
 ```bash
+# See the next logical move
 npm start -- data/puzzle.json
 ```
 
 Reads the board, validates it, runs the solver, and prints:
-
 - The strategy used and a human-readable explanation
 - Which cells were solved or had candidates eliminated
 - A `moves` array (structured, machine-readable)
-- The full board JSON after the move
 
 Example output:
 
@@ -200,30 +226,17 @@ Strategy: AIC: R2C3=4 == R2C3=5 -- R7C3=5 == R9C2=5 -- R5C2=5 == R5C6=5 -- R5C6=
 
 Candidates eliminated:
   R2C4: removed [4] — remaining: [1,5,9]
-
-Next state (JSON):
-{
-  "cells": [ ... ],
-  "lastMove": "AIC: ...",
-  "moves": [
-    { "cell": "R2C4", "action": "remove_candidate", "digit": 4 }
-  ]
-}
 ```
 
-### Apply moves and update the file
-
-```bash
-npm start -- data/puzzle.json --moves '<json-array>'
-```
-
-The `--moves` flag accepts a JSON array of `CellAction` objects. The program applies each move to the board, re-validates the result, and **writes the updated board back to the same file**.
+**Apply moves via CLI:**
 
 ```bash
 npm start -- data/puzzle.json --moves '[
   {"cell":"R2C4","action":"remove_candidate","digit":4}
 ]'
 ```
+
+The `--moves` flag accepts a JSON array of `CellAction` objects. The program applies each move to the board, re-validates the result, and **writes the updated board back to the same file**.
 
 Two action types are supported:
 
@@ -240,7 +253,7 @@ Errors are reported and the file is left unchanged if:
 - A cell being solved is already solved
 - The resulting board fails validation (e.g. duplicate digit in a unit)
 
-Typical workflow after the solver suggests a move:
+Typical CLI workflow:
 
 ```bash
 # 1. See what the solver recommends
