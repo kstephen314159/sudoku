@@ -16,6 +16,117 @@ npm install
 npm start -- data/puzzle.json
 ```
 
+## Architecture Overview
+
+The project now uses a **client-server architecture**:
+
+```
+┌─────────────────────────┐
+│   SPA (React-like)      │  ← Renders board, handles UX
+│   Port 3000             │
+└────────────┬────────────┘
+             │ HTTP/REST
+             ▼
+┌─────────────────────────┐
+│  Express.js API Server  │  ← Solver engine, board state
+│  Port 3001              │
+└─────────────────────────┘
+```
+
+**Benefits:**
+- ✅ Separation of concerns (UI ↔ Logic)
+- ✅ Solver components run server-side
+- ✅ Easy to scale independently
+- ✅ Can deploy to Lambda, ECS, or any Node.js runtime
+- ✅ Board state persists on server (not ephemeral in browser)
+
+## Web UI (Single Page Application)
+
+A responsive TypeScript SPA is provided for interactive Sudoku solving with visualization. The SPA communicates with an Express.js API server that manages the puzzle state and solver logic.
+
+### Prerequisites
+
+- **Node.js** 18+
+- **Podman** (optional, for containerized local development)
+
+### Without Containers (Fastest local dev - Recommended)
+
+**Terminal 1: Start the API server**
+
+```bash
+npm run dev:api
+# Starts on http://localhost:3001
+```
+
+**Terminal 2: Start the SPA dev server**
+
+```bash
+npm run dev
+# Starts on http://localhost:3000 with hot reloading
+```
+
+Open http://localhost:3000 in your browser.
+
+### With Podman (Optional - API in container)
+
+Build the API container once:
+
+```bash
+podman build -f Dockerfile -t sudoku-api .
+```
+
+Then run it (in one terminal):
+
+```bash
+podman run --rm \
+  -p 3001:3001 \
+  -v $(pwd):/app \
+  -v /app/node_modules \
+  -e NODE_ENV=development \
+  -e PORT=3001 \
+  sudoku-api
+```
+
+In another terminal, start the SPA:
+
+```bash
+npm run dev
+```
+
+See [PODMAN.md](PODMAN.md) for more container details.
+### Using the SPA
+
+1. **Load a puzzle** — Click "Load Puzzle" and select a JSON file (e.g., `data/puzzle.json`)
+2. **Visualize** — The board renders with:
+   - **Solved cells** — displayed as bold digits (centered)
+   - **Candidate cells** — displayed as a 3×3 grid of candidates (1–9)
+   - **Eliminated candidates** — shown struck-through and faded
+3. **Find next move** — Click "Find Next Move" to invoke the solver via the API
+4. **Highlights** — After solving:
+   - Affected cells are highlighted in **yellow** with a blue border
+   - For `remove_candidate` moves: the specific digit is highlighted in **orange**
+   - For `solve` moves: the promoted digit is highlighted in **orange**
+5. **Inspect results** — The right sidebar shows:
+   - **Last Move** text (human-readable strategy description)
+   - **Moves Detail** list (structured cell actions)
+   - **Board Stats** (solved cells and total candidates remaining)
+6. **Apply Move** — Click the "Apply Move" button to commit the suggested moves to the board
+
+The board and server state update after each move. You can click "Find Next Move" repeatedly to step through the solution interactively.
+
+### API Endpoints
+
+The API server exposes these endpoints (on port 3001):
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/puzzle/load` | Load a new puzzle |
+| `GET` | `/api/puzzle/current` | Get current board state |
+| `POST` | `/api/solve/next` | Get suggested next move |
+| `POST` | `/api/moves/apply` | Apply moves and persist board |
+| `GET` | `/api/puzzle/stats` | Get board statistics |
+| `GET` | `/health` | Health check |
+
 ## Project structure
 
 ```
@@ -23,12 +134,19 @@ src/
   types.ts      — Shared TypeScript types (Cell, SudokuState, CellAction, …)
   solver.ts     — AdvancedSudokuSolver: 8 strategies applied in priority order
   validator.ts  — SudokuValidator: board sanity checks
-  main.ts       — CLI entry point
+  main.ts       — CLI entry point (original interface)
+  api/
+    index.ts    — Express.js API server setup and routes
+  server.ts     — API server entry point
+  ui.ts         — SPA UI logic (calls API endpoints)
+  index.html    — SPA HTML structure
+  style.css     — SPA styling
 test/
   main.test.ts       — Unit tests for all solver strategies
   validator.test.ts  — Unit tests for the validator
 data/
   puzzle.json   — Current board state (read and written by the CLI)
+Dockerfile      — Container image for API server
 ```
 
 ## Board format
