@@ -202,6 +202,20 @@ npm run build      # compile to dist/ (type-check with emit)
 
 There are 39 unit tests across two files covering every strategy, all validator error codes, and AIC-specific behaviour (real puzzle board, shortest-chain selection).
 
+## CI / GitHub Actions
+
+Three workflows run automatically on every push and pull request to any branch:
+
+| Workflow | File | What it checks |
+|---|---|---|
+| **Security** | `security.yml` | `npm audit` for dependency CVEs (moderate+); CodeQL static analysis for TypeScript/JavaScript vulnerabilities |
+| **Dead code** | `code-quality.yml` | `knip` — unused exports, unreachable files, unused imports |
+| **Performance** | `code-quality.yml` | Test suite must complete in <30 s; solver on `puzzle.json` must complete in <5 s |
+
+CodeQL results appear in the repository **Security → Code scanning** tab. All other workflow results appear in the **Actions** tab.
+
+The file `.github/copilot-instructions.md` provides equivalent guidance for **manually initiated** Copilot agent sessions — it is context only and does not trigger automatically.
+
 ## Output types
 
 ```typescript

@@ -1,0 +1,71 @@
+name: Code Quality
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  dead-code:
+    name: Dead Code Detection (knip)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run knip (dead code / unused exports)
+        run: npx --yes knip
+
+  performance:
+    name: Performance Baseline (test timing)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with timing
+        run: npm test -- --reporter=verbose 2>&1 | tee test-output.txt
+
+      - name: Check test suite completes within threshold
+        # Fails if the total wall-clock time for npm test exceeds 30 seconds.
+        # Adjust the threshold as the test suite grows.
+        run: |
+          START=$(date +%s%N)
+          npm test
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000 ))
+          echo "Test suite completed in ${ELAPSED}ms"
+          if [ "$ELAPSED" -gt 30000 ]; then
+            echo "ERROR: Test suite exceeded 30 second performance threshold (${ELAPSED}ms)"
+            exit 1
+          fi
+
+      - name: Run solver on puzzle and capture timing
+        run: |
+          START=$(date +%s%N)
+          npm start -- data/puzzle.json
+          END=$(date +%s%N)
+          ELAPSED=$(( (END - START) / 1000000 ))
+          echo "Solver completed in ${ELAPSED}ms"
+          # Fail if solver takes more than 5 seconds on the current board
+          if [ "$ELAPSED" -gt 5000 ]; then
+            echo "ERROR: Solver exceeded 5 second performance threshold (${ELAPSED}ms)"
+            exit 1
+          fi
