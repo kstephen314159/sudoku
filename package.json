@@ -4,9 +4,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:spa": "vite build",
-    "start": "tsx src/main.ts",
+    "start": "tsx src/api/main.ts",
     "dev": "vite",
-    "dev:api": "tsx src/server.ts",
+    "dev:api": "tsx src/api/server.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

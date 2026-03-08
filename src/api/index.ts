@@ -1,9 +1,9 @@
 import express, { Express, Request, Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
-import { AdvancedSudokuSolver } from '../solver';
-import { Cell, CellAction, CellJson, SudokuState, SudokuStateJson } from '../types';
-import { SudokuValidator } from '../validator';
+import { AdvancedSudokuSolver } from '../core/solver';
+import { Cell, CellAction, CellJson, SudokuState, SudokuStateJson } from '../core/types';
+import { SudokuValidator } from '../core/validator';
 
 // ---------------------------------------------------------------------------
 // Disk-based state management

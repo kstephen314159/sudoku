@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
-import { Cell } from '../src/types';
-import { SudokuValidator, ValidationError } from '../src/validator';
+import { Cell } from '../src/core/types';
+import { SudokuValidator, ValidationError } from '../src/core/validator';
 
 // ---------------------------------------------------------------------------
 // Helpers

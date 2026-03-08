@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
-import { AdvancedSudokuSolver } from '../src/solver';
-import { Cell, SudokuState } from '../src/types';
+import { AdvancedSudokuSolver } from '../src/core/solver';
+import { Cell, SudokuState } from '../src/core/types';
 
 // ---------------------------------------------------------------------------
 // Test helpers
