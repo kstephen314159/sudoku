@@ -75,6 +75,11 @@ Build the API container once:
 podman build -f Dockerfile -t sudoku-api .
 ```
 
+> **Apple Silicon (M1/M2/M3/M4):** If you see a platform mismatch warning (`image platform (linux/amd64) does not match the expected platform (linux/arm64)`), build with the `--platform` flag instead:
+> ```bash
+> podman build --platform linux/arm64 -f Dockerfile -t sudoku-api .
+> ```
+
 Then run it (in one terminal):
 
 ```bash
